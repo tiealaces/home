@@ -21,6 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "buzzer.h"
+#include "motor.h"
 
 /* USER CODE END Includes */
 
@@ -40,7 +42,9 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim10;
+TIM_HandleTypeDef htim11;
 
 UART_HandleTypeDef huart1;
 
@@ -55,6 +59,8 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM10_Init(void);
+static void MX_TIM2_Init(void);
+static void MX_TIM11_Init(void);
 /* USER CODE BEGIN PFP */
 #ifdef __GNUC__
   /* With GCC, small printf (option LD Linker->Libraries->Small printf
@@ -68,7 +74,9 @@ static void MX_TIM10_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+extern uint8_t stop;
 
+int speed = 600 ;
 
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t rxBufferSize)
 {
@@ -79,40 +87,51 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t rxBufferSize
 			str_peri[rxBufferSize] = 0;	// trans char
 		}
 		HAL_UARTEx_ReceiveToIdle_IT(&huart1, str_peri, sizeof(str_peri));
+
+
+		if(str_peri[0] == 'F')
+		{
+			stop = 0;
+			__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
+			Forward();
+
+		}
+		else if(str_peri[0] == 'L')
+		{
+			stop = 0;
+			__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
+			Left();
+		}
+		else if(str_peri[0] == 'B')
+		{
+			stop = 1;
+
+
+
+		}
+		else if(str_peri[0] == 'R')
+		{
+			stop = 0;
+			__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
+			Right();
+		}
+		else if(str_peri[0] == 'P')
+		{
+			stop = 0;
+			STOP();
+		}
+		else if(str_peri[0] == 'A')
+		{
+			stop = 0;
+			speedIndex = (speedIndex +1) % (sizeof(speedState) / sizeof(speedState[0]));
+			speed = speedState[speedIndex];
+			__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
+		}
+
+
 	}
 
-	int speed = 600;	// default speed
-
-	if(str_peri[0] == 'F')
-	{
-		__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
-		Forward();
-	}
-	else if(str_peri[0] == 'L')
-	{
-		__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
-		Left();
-	}
-	else if(str_peri[0] == 'B')
-	{
-		__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
-		Backward();
-	}
-	else if(str_peri[0] == 'R')
-	{
-		__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
-		Right();
-	}
-	else if(str_peri[0] == 'P')
-	{
-		STOP();
-	}
-	else if(str_peri[0] == 'A')
-	{
-		speedIndex = (speedIndex +1) % (sizeof(speedState) / sizeof(speedState[0]));
-		speed = speedState[speedIndex];
-		__HAL_TIM_SET_COMPARE(&htim10, TIM_CHANNEL_1, speed);
-	}
+		// default speed
 
 }
 /* USER CODE END 0 */
@@ -148,15 +167,24 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   MX_TIM10_Init();
+  MX_TIM2_Init();
+  MX_TIM11_Init();
   /* USER CODE BEGIN 2 */
   HAL_UARTEx_ReceiveToIdle_IT(&huart1, str_peri, sizeof(str_peri));
   HAL_TIM_PWM_Start(&htim10, TIM_CHANNEL_1);
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+
+		music();
+
+
+
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -210,6 +238,69 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
+
+  /* USER CODE BEGIN TIM2_Init 0 */
+
+  /* USER CODE END TIM2_Init 0 */
+
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
+
+  /* USER CODE BEGIN TIM2_Init 1 */
+
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 2000-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 1000-1;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
+
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
+
+}
+
+/**
   * @brief TIM10 Initialization Function
   * @param None
   * @retval None
@@ -252,6 +343,37 @@ static void MX_TIM10_Init(void)
 
   /* USER CODE END TIM10_Init 2 */
   HAL_TIM_MspPostInit(&htim10);
+
+}
+
+/**
+  * @brief TIM11 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM11_Init(void)
+{
+
+  /* USER CODE BEGIN TIM11_Init 0 */
+
+  /* USER CODE END TIM11_Init 0 */
+
+  /* USER CODE BEGIN TIM11_Init 1 */
+
+  /* USER CODE END TIM11_Init 1 */
+  htim11.Instance = TIM11;
+  htim11.Init.Prescaler = 9999;
+  htim11.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim11.Init.Period = 65535;
+  htim11.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim11.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim11) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM11_Init 2 */
+
+  /* USER CODE END TIM11_Init 2 */
 
 }
 
@@ -301,8 +423,8 @@ static void MX_GPIO_Init(void)
 
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOH_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
   __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_1|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15, GPIO_PIN_RESET);
