@@ -117,6 +117,7 @@ int main(void)
   MX_GPIO_Init();
   MX_USART2_UART_Init();
   MX_TIM10_Init();
+  MX_TIM11_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart2, &rxData, sizeof(rxData));
 //  rotateDegrees(360, DIR_CW);
